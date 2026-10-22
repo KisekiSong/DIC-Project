@@ -23,6 +23,7 @@ models/kmeans_daily_shape   persisted PipelineModel
   │ profiles.py   per-user pattern shares, weekly-structure metrics (weekly.py), Plotly report
   ▼
 delta/user_profiles + output/report.html, output/clustering.json, output/run_log.jsonl
+(all Delta tables and the model can live on HDFS: see "Run on HDFS")
 ```
 
 | Stage | Main Spark idea | Output |
@@ -73,13 +74,49 @@ unzip -o data/raw/uci.zip -d data/raw
 Run with `--help` to see every option. Each stage appends its time, settings and key numbers to
 `output/run_log.jsonl`.
 
-**HDFS.** All table and model paths go through Spark's Hadoop file system layer, so `hdfs://` URIs should work
-unchanged (not yet tested on a cluster):
+## Run on HDFS
+
+All table and model paths go through Spark's Hadoop file system layer, so the same code runs on `hdfs://` URIs.
+`hdfs/docker-compose.yml` starts a single-node HDFS: the official `apache/hadoop:3.3.6` image, with the
+NameNode and DataNode in one container and the data in a Docker volume. The image is amd64-only; Docker Desktop
+emulates it on Apple Silicon.
 
 ```bash
-hdfs dfs -mkdir -p /elec/raw && hdfs dfs -put data/raw/LD2011_2014.txt /elec/raw/
-.venv/bin/python pipeline.py --raw hdfs://localhost:9000/elec/raw/LD2011_2014.txt --data-root hdfs://localhost:9000/elec
+docker compose -f hdfs/docker-compose.yml up -d
+docker exec dic-hdfs hdfs dfs -mkdir -p /elec/raw
+docker exec -i dic-hdfs hdfs dfs -put -f - /elec/raw/LD2011_2014.txt < data/raw/LD2011_2014.txt
+HADOOP_CONF_DIR=$PWD/hdfs/client-conf .venv/bin/python pipeline.py \
+    --raw hdfs://localhost:9000/elec/raw/LD2011_2014.txt --data-root hdfs://localhost:9000/elec --output output/hdfs
+docker compose -f hdfs/docker-compose.yml down   # keeps the HDFS volume; add -v to delete it
 ```
+
+The DataNode registers as `localhost`, and `hdfs/client-conf/hdfs-site.xml` tells the client to connect by that
+name (through the published port 9866) and to write a single replica. The NameNode web UI is at
+http://localhost:9870.
+
+Verified run (2026-10-22): the raw file is stored as 6 blocks of up to 128 MB (678 MB in total). The Delta tables
+take 198 MB (`readings` 117 MB partitioned by year, `daily_curves` 76 MB, `daily_clusters` 4 MB), and the
+PipelineModel is saved under `/elec/models`. The run produced the same cluster centres, silhouettes and pattern
+shares as the local run. Stage times compared with local disk:
+
+| stage | local (s) | HDFS (s) |
+|---|---|---|
+| ingest | 25.5 | 29.8 |
+| features | 7.2 | 11.1 |
+| k sweep (features cached in memory) | 32.8 | 33.1 |
+| final model and checks | 8.9 | 12.8 |
+
+## Report
+
+`report/report.md` is the source of the two-page report and `report/report.pdf` the rendered version. Figure 1 is
+drawn from `output/clustering.json`, so build the report after running the pipeline:
+
+```bash
+.venv/bin/python report/build_report.py
+```
+
+The build fails if the PDF exceeds two pages or the source contains a placeholder. `report/report-evidence.md`
+maps each requirement and number in the report to its source.
 
 ## Results (default configuration)
 
@@ -185,4 +222,4 @@ Findings:
 - Some calendars switch pattern by season, so a month or season breakdown belongs in the profiles.
 - Holidays use the national calendar only; municipal holidays are not covered.
 - Record stage times under different `--master local[n]` and `--shuffle-partitions` settings for the report.
-- Run once on HDFS to match the proposal.
+- HDFS was tested as a single node in Docker, not on a multi-node cluster.

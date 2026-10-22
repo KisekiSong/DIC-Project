@@ -4,3 +4,7 @@ numpy==2.5.4
 plotly==7.1.0
 # pyspark.ml 3.5 still imports distutils, which Python 3.12 removed; setuptools provides the shim.
 setuptools
+# Report build only (report/build_report.py)
+reportlab==5.1.0
+matplotlib==3.11.2
+pypdf==6.21.2

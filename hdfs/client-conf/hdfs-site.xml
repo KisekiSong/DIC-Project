@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Client settings for the Docker HDFS. Run the pipeline with HADOOP_CONF_DIR pointing at this folder. -->
+<configuration>
+  <property>
+    <!-- The DataNode registers as localhost, which reaches it through the published port. -->
+    <name>dfs.client.use.datanode.hostname</name>
+    <value>true</value>
+  </property>
+  <property>
+    <!-- There is a single DataNode, so ask for one replica instead of the default three. -->
+    <name>dfs.replication</name>
+    <value>1</value>
+  </property>
+</configuration>

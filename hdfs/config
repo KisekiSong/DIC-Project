@@ -1,0 +1,8 @@
+CORE-SITE.XML_fs.defaultFS=hdfs://localhost:9000
+HDFS-SITE.XML_dfs.namenode.name.dir=/data/name
+HDFS-SITE.XML_dfs.datanode.data.dir=/data/datanode
+HDFS-SITE.XML_dfs.namenode.rpc-bind-host=0.0.0.0
+HDFS-SITE.XML_dfs.namenode.http-bind-host=0.0.0.0
+HDFS-SITE.XML_dfs.replication=1
+HDFS-SITE.XML_dfs.permissions.enabled=false
+HDFS-SITE.XML_dfs.datanode.hostname=localhost

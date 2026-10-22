@@ -1,0 +1,21 @@
+# Single-node HDFS (NameNode and DataNode in one container), reachable from the host at hdfs://localhost:9000.
+name: dic-hdfs
+services:
+  hdfs:
+    image: apache/hadoop:3.3.6
+    platform: linux/amd64  # the official image is amd64-only; Docker Desktop emulates it on Apple Silicon
+    container_name: dic-hdfs
+    env_file: config
+    environment:
+      ENSURE_NAMENODE_DIR: /data/name  # the image formats the NameNode on first start
+    command: ["bash", "-c", "hdfs --daemon start namenode && exec hdfs datanode"]
+    ports:
+      - "9000:9000"  # NameNode RPC (fs.defaultFS)
+      - "9870:9870"  # NameNode web UI
+      - "9864:9864"  # DataNode web UI
+      - "9866:9866"  # DataNode data transfer
+    volumes:
+      - hdfs-data:/data
+
+volumes:
+  hdfs-data:
