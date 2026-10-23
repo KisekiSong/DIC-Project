@@ -6,3 +6,4 @@ spark-warehouse/
 metastore_db/
 derby.log
 report/build/
+.DS_Store
