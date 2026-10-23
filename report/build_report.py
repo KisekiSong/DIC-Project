@@ -1,9 +1,10 @@
-"""Render report.md as a plain two-page A4 PDF and check the result.
+"""Render report.md as a two-page A4 PDF and check the result.
 
 Run from the project root after the pipeline: .venv/bin/python report/build_report.py
 Figure 1 is drawn from output/clustering.json, so it always shows the model the text describes."""
 import json
 import re
+import sys
 from html import escape
 from pathlib import Path
 
@@ -23,6 +24,8 @@ from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
+sys.path.insert(0, str(ROOT))
+from profiles import colour_of  # noqa: E402  same pattern colours as the HTML report
 SOURCE = HERE / 'report.md'
 OUTPUT = HERE / 'report.pdf'
 FIGURE = HERE / 'build' / 'figure1.png'
@@ -36,9 +39,8 @@ PATTERN_NAMES = {
     'daytime plateau 11-22h, low base': 'Low-base plateau (11–22 h)',
     'daytime plateau 09-19h, medium base': 'Office hours (09–19 h)',
 }
-# Greyscale line styles: (colour, line style, marker).
-LINE_STYLES = [('black', '-', 'o'), ('black', '--', 's'), ('0.5', '-', '^'),
-               ('black', ':', 'D'), ('0.5', '--', 'v')]
+# Markers keep the curves apart if the page is printed in black and white.
+MARKERS = ['o', 's', '^', 'D', 'v']
 
 for name, filename in (('Serif', 'Times New Roman.ttf'), ('SerifBold', 'Times New Roman Bold.ttf'),
                        ('SerifItalic', 'Times New Roman Italic.ttf')):
@@ -78,11 +80,11 @@ def draw_figure(path):
     unknown = [c['label'] for c in centres if c['label'] not in PATTERN_NAMES]
     assert not unknown, f'name these patterns in PATTERN_NAMES: {unknown}'
     fig, ax = plt.subplots(figsize=(6.6, 2.15))
-    for centre, (colour, style, marker) in zip(centres, LINE_STYLES):
+    for centre, marker in zip(centres, MARKERS):
         values = [v * 100 for v in centre['centre']]
         label = f"{PATTERN_NAMES[centre['label']]}, {share[centre['cluster']]:.0%}"
-        ax.plot(range(24), values, color=colour, linestyle=style, marker=marker, markersize=2.8, linewidth=1.1,
-                label=label)
+        ax.plot(range(24), values, color=colour_of(centre['cluster']), marker=marker, markersize=2.8,
+                linewidth=1.3, label=label)
     ax.set_xlabel('Hour of day')
     ax.set_ylabel('% of daily energy')
     ax.set_xticks(range(0, 24, 2))
