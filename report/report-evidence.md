@@ -39,8 +39,8 @@ All runs use the code at the commit that adds this file. Local outputs are in `o
 | Table 1 shares and lifts | `daily_clusters` recomputed with `weekly.summarise`; matches `output/explore_excl_MT_093/explore.json` (share, k = 5) |
 | Mean silhouette per k (0.461, 0.486, 0.437, ..., 0.239) | `output/clustering.json`, `runs` |
 | Seeds at lowest cost and flat-cluster Jaccard (6/10 and 0.73 at k = 4; 8/10 and 0.91 at k = 5) | `output/explore_excl_MT_093/explore.json` |
-| All meters: 1/10 seeds, 0.1% cluster with 99% MT_093 | `output/explore/explore.json` (share, k = 5) |
-| MT_093: 27–59% of daily energy 13:00–17:00 (monthly means, 2013) | ad hoc Spark check on `delta/daily_curves` |
+| §5, last sentence: with MT_093 included it occupies its own cluster (0.1% of days, 99% from MT_093) and only 1 of 10 seeds reaches the lowest cost (8 of 10 without it) | `output/explore/explore.json` and `output/explore_excl_MT_093/explore.json` (share, k = 5) |
+| §5, last sentence: MT_093's unusual 13:00–17:00 block (27–59% of daily energy, monthly means, 2013) | ad hoc Spark check on `delta/daily_curves` |
 | Peak normalisation: 10/10 seeds at k = 3 and 4; flat 10.3% and 09–20 h plateau 15.4% at k = 5 | `output/explore_excl_MT_093/explore.json` |
 | Peak refit at k = 5: ARI 0.67, Jaccard 0.94 and 0.69 | `output/clustering.json`, `normalisation_check` |
 | Weekly MI 0.071 of 0.864 bits; user explains 73%; median shift 0.04; 79 of 330 users; 55 users, 50% vs 15% | `weekly.summarise` on `daily_clusters` (train split) |
