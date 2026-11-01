@@ -16,12 +16,12 @@ READINGS_PER_DAY = 96
 
 def create_spark(master='local[*]', driver_memory='8g', shuffle_partitions=32):
     os.environ.setdefault('PYSPARK_PYTHON', sys.executable)
-    # Collected timestamps are converted with the Python process timezone; match the Spark session.
+    # Collected timestamps use the process time zone; keep it equal to the Spark session.
     os.environ['TZ'] = 'UTC'
     time.tzset()
     builder = (SparkSession.builder.appName('ElectricityDailyPatterns').master(master)
                .config('spark.driver.memory', driver_memory)
-               # Source timestamps are naive Portuguese wall-clock labels; UTC keeps them unshifted.
+               # Source timestamps carry no time zone; UTC leaves them unshifted.
                .config('spark.sql.session.timeZone', 'UTC')
                .config('spark.sql.shuffle.partitions', str(shuffle_partitions))
                .config('spark.sql.extensions', 'io.delta.sql.DeltaSparkSessionExtension')
@@ -32,7 +32,6 @@ def create_spark(master='local[*]', driver_memory='8g', shuffle_partitions=32):
 
 
 def table_path(data_root, name):
-    # Works for local paths and hdfs:// URIs alike, since Spark resolves the scheme.
     return f"{data_root.rstrip('/')}/delta/{name}"
 
 
@@ -59,7 +58,7 @@ def dst_transition_days(years):
 
 
 def easter(year):
-    """Gregorian Easter Sunday (anonymous Gregorian algorithm)."""
+    """Gregorian Easter Sunday."""
     a = year % 19
     b, c = divmod(year, 100)
     d, e = divmod(b, 4)
@@ -73,7 +72,7 @@ def easter(year):
 
 
 def pt_public_holidays(year):
-    """Portuguese national holidays; Corpus Christi, 5 Oct, 1 Nov and 1 Dec were suspended in 2013-2015."""
+    """Portuguese national holidays (four of them were suspended in 2013-2015)."""
     sunday = easter(year)
     days = [date(year, m, d) for m, d in [(1, 1), (4, 25), (5, 1), (6, 10), (8, 15), (12, 8), (12, 25)]]
     days += [sunday - timedelta(days=2), sunday]
@@ -93,7 +92,7 @@ def load_json(path):
 
 
 class RunLog:
-    """Stage timings and settings, appended so repeated experiments stay comparable."""
+    """Appends stage timings and settings to run_log.jsonl."""
 
     def __init__(self, output_dir, spark, args):
         self.path = Path(output_dir) / 'run_log.jsonl'

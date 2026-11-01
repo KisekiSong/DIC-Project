@@ -15,7 +15,7 @@ def hour_kwh(h):
 
 
 def build_daily(readings):
-    # Manual pivot: 24 conditional sums in a single aggregation, so one shuffle builds the whole curve.
+    # 24 conditional sums in one aggregation: the whole curve needs a single shuffle.
     hourly = [hour_kwh(h) for h in HOURS]
     daily = (readings
              .groupBy('user_id', F.to_date('interval_start').alias('date'))
@@ -35,7 +35,7 @@ def label_validity(daily, years):
     reason = (F.when(F.col('n_readings') < READINGS_PER_DAY, 'incomplete')
               .when(F.col('date').cast('string').isin(dst), 'dst_transition')
               .when(F.col('daily_kwh') <= 0, 'zero_consumption')
-              # Half a day of exact zeros inside an otherwise active day looks like an outage or a meter start.
+              # likely an outage or a meter start
               .when(F.col('zero_readings') >= READINGS_PER_DAY // 2, 'mostly_zero'))
     return daily.withColumn('exclusion', reason).withColumn('valid', reason.isNull())
 
@@ -54,7 +54,6 @@ def label_day_types(daily, years):
     typical = daily.where('valid').groupBy('user_id', 'year').agg(median_kwh)
     return (daily.withColumn('day_class', day_class)
             .join(typical, ['user_id', 'year'], 'left')
-            # Well below the user's own typical day: a candidate closed or reduced-operation day.
             .withColumn('low', F.col('daily_kwh') < 0.5 * F.col('median_kwh')))
 
 
@@ -71,11 +70,10 @@ def coverage(daily):
 
 
 def run(spark, args, log):
-    # All years are built: the table is small and coverage across years guides the study-period choice.
     readings = read_table(spark, args.data_root, 'readings')
     years = sorted(r.year for r in readings.select('year').distinct().collect())
     with log.stage('features', years=years) as info:
-        # Cached because the day-type labels aggregate the same days again for each user's median.
+        # cached: label_day_types reads it twice
         daily = label_validity(build_daily(readings), years).cache()
         write_table(label_day_types(daily, years), args.data_root, 'daily_curves', partition_by=['year'])
         daily.unpersist()

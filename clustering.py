@@ -1,4 +1,4 @@
-"""Stage 3: K-means on normalised daily curves: k/seed sweep, final model, holdout and normalisation checks."""
+"""Stage 3: K-means on normalised daily curves, with a k/seed sweep, a holdout year and a normalisation check."""
 import time
 from collections import defaultdict
 from itertools import combinations
@@ -32,7 +32,6 @@ def feature_stages(norm):
 
 
 def kmeans(k, seed, prediction='cluster'):
-    # 50 iterations left several k = 5-6 runs unconverged, which showed up as false instability.
     return KMeans(k=k, seed=seed, featuresCol='features', predictionCol=prediction, maxIter=200)
 
 
@@ -65,9 +64,7 @@ def adjusted_rand(cells):
 
 
 def best_match_jaccard(cells):
-    """For each cluster of the first assignment: Jaccard overlap with its best match in the second.
-
-    A partition can have a modest ARI overall while one pattern (say, closed days) is found every time."""
+    """For each cluster of the first assignment: Jaccard overlap with its best match in the second."""
     sizes_a, sizes_b = defaultdict(int), defaultdict(int)
     for (a, b), n in cells.items():
         sizes_a[a] += n
@@ -82,7 +79,6 @@ def best_match_jaccard(cells):
 def select_days(spark, args):
     daily = read_table(spark, args.data_root, 'daily_curves').where('valid')
     train = daily.where(F.col('year') == args.year)
-    # Meters with too few valid days would give noisy profiles; listed outlier meters are left out on purpose.
     counts = train.where(~F.col('user_id').isin(args.exclude_meters)).groupBy('user_id').count()
     meters = counts.where(F.col('count') >= args.min_valid_days).select('user_id')
     train = train.join(meters, 'user_id')
@@ -93,10 +89,7 @@ def select_days(spark, args):
 
 
 def prepare_features(spark, days, norm):
-    """Normalised feature vectors, cached and spread over all cores for the repeated K-means fits.
-
-    Spark's k-means initialisation depends on row order as well as on the seed, so every fit in the project
-    starts from this one layout; a given seed then always means the same model."""
+    """Cached feature vectors. Every fit reads this table, because k-means initialisation depends on row order."""
     transformed = Pipeline(stages=feature_stages(norm)).fit(days).transform(days)
     selected = transformed.select(*FEATURE_COLS, 'features')
     return selected.repartition(spark.sparkContext.defaultParallelism).cache()
@@ -119,15 +112,12 @@ def fit_seeds(features, k, seeds):
 
 
 def best_run(runs):
-    """Lowest within-cluster sum of squares: the K-means objective, as usual when choosing among restarts."""
+    """Restart with the lowest within-cluster cost."""
     return min(runs, key=lambda run: run['cost'])
 
 
 def best_cost_hits(runs):
-    """How many seeds reach the lowest cost (within 0.1%).
-
-    The final model is the lowest-cost restart, so this count, not the average agreement between all seeds,
-    says how reliably a rerun reproduces it."""
+    """Number of seeds within 0.1% of the lowest cost."""
     lowest = best_run(runs)['cost']
     return sum(run['cost'] <= lowest * 1.001 for run in runs)
 
@@ -172,7 +162,7 @@ def choose(runs, args):
 
 
 def chosen_model(runs, k, seed, features):
-    """The sweep's own fitted model for (k, seed), so the final model is exactly the run that was chosen."""
+    """The sweep's fitted model for (k, seed)."""
     for run in runs:
         if run['k'] == k and run['seed'] == seed:
             return run['model']
@@ -180,7 +170,7 @@ def chosen_model(runs, k, seed, features):
 
 
 def as_pipeline(norm, kmeans_model, prediction):
-    """Feature transformers plus an already fitted K-means, persisted and applied as one PipelineModel."""
+    """Feature stages and a fitted K-means model as one PipelineModel."""
     kmeans_model.setPredictionCol(prediction)
     return PipelineModel(stages=feature_stages(norm) + [kmeans_model])
 
@@ -223,7 +213,7 @@ def with_distance(spark, preds, centres):
 
 
 def representatives(assigned, per_cluster=3):
-    """The days closest to each centre, as concrete examples of the pattern."""
+    """The days closest to each centre."""
     rank = F.row_number().over(Window.partitionBy('cluster').orderBy('distance'))
     rows = assigned.withColumn('rank', rank).where(F.col('rank') <= per_cluster).collect()
     examples = []
@@ -240,7 +230,7 @@ def shares(assigned):
 
 
 def normalisation_check(spark, train, assigned, norm, k, seeds):
-    """Refit with another normalisation at the same k (lowest-cost seed): does it put the same days together?"""
+    """Refit with another normalisation at the same k and compare the assignments."""
     features = prepare_features(spark, train, norm)
     preds, runs = fit_seeds(features, k, seeds)
     preds.unpersist()
@@ -276,7 +266,6 @@ def fit_final(spark, args, train, holdout, k, seed, kmeans_model):
         result.update(holdout_days=tested.count(), holdout_silhouette=silhouette(tested),
                       holdout_shares=shares(tested))
         output = output.unionByName(tested)
-    # The union inherits many small partitions; a few files are plenty for ~250k rows.
     columns = DAY_COLS + ['cluster', 'distance', 'split']
     write_table(output.select(*columns).coalesce(4), args.data_root, 'daily_clusters')
     return result

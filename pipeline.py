@@ -5,7 +5,7 @@ import importlib
 from common import RunLog, create_spark
 
 STAGES = ['ingest', 'features', 'cluster', 'profile']
-EXTRA = ['explore']  # experiments: run by name only, never part of 'all'
+EXTRA = ['explore']  # run only when named
 MODULES = {'ingest': 'ingest', 'features': 'features', 'cluster': 'clustering', 'profile': 'profiles',
            'explore': 'explore'}
 
@@ -22,7 +22,6 @@ def parse_args():
     p.add_argument('--k-min', type=int, default=3)
     p.add_argument('--k-max', type=int, default=8)
     p.add_argument('--seeds', default='1,2,3,4,5', help='random initialisations compared per k')
-    # k = 5 is the smallest k with a reproducible closed-day pattern (see README, Exploration).
     p.add_argument('--k', type=int, default=5, help='final cluster count (0 = best mean silhouette)')
     p.add_argument('--norm', choices=['share', 'peak'], default='share',
                    help='share: divide by daily total; peak: divide by daily maximum')
@@ -32,7 +31,6 @@ def parse_args():
     p.add_argument('--ks', default='3,4,5,6', help='explore: cluster counts to compare')
     p.add_argument('--min-valid-days', type=int, default=300,
                    help='meters need this many valid study-year days to be clustered')
-    # MT_093 runs a unique 13:00-17:00 load block; some seeds spend a whole cluster on it alone.
     p.add_argument('--exclude-meters', default='MT_093',
                    help="comma-separated meters left out of fitting ('' keeps every meter)")
     p.add_argument('--master', default='local[*]')

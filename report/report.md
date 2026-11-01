@@ -38,16 +38,7 @@ Reproducibility rather than silhouette decided k. Mean silhouette was highest at
 
 Weekly structure explains a small part of the variation. The conditional mutual information was 0.071 bits, whereas the weekend indicator carries 0.864 bits, and knowing the user removes 73% of the cluster entropy. Most users keep the same mix of patterns all week (median total-variation distance 0.04 between weekday and weekend mixes), but 79 of 330 users differ by more than 0.2. For the 55 users whose Sunday pattern differs from their weekday pattern, 50% of weekday holidays took the Sunday pattern, compared with 15% of ordinary weekdays. In 2014 the silhouette was 0.444 (0.439 in 2013), every pattern share changed by less than one percentage point, and 95.5% of the user and day-type pairs kept their dominant pattern.
 
-Table 2 compares stage times on the local disk and on HDFS, measured in one run each on a 14-core laptop with Spark 3.5.6 in local mode. Both runs produced identical cluster centres and silhouettes. HDFS added about 4 s to ingestion, curve construction and the final stage, which read or write tables, whereas the k sweep runs on cached features and took the same time.
-
-Table 2. Stage times in seconds (one run each).
-
-| Stage | Local disk | HDFS |
-|---|---|---|
-| Ingestion and validation (51.9 M readings) | 25.5 | 29.8 |
-| Daily curves and day labels | 7.2 | 11.1 |
-| K sweep (k = 3 to 8, five seeds) | 32.8 | 33.1 |
-| Final model, holdout and peak refit | 8.9 | 12.8 |
+The full pipeline ran in about 80 s on a 14-core laptop with Spark 3.5.6 in local mode: ingestion took 25.5 s, the daily curves 7.2 s, the k sweep 32.8 s and the final model with its checks 8.9 s (one run each). On HDFS the three stages that read or write tables took about 4 s longer (29.8, 11.1 and 12.8 s), the k sweep on cached features took 33.1 s, and the cluster centres and silhouettes were identical.
 
 ## 5. Discussion and Limitations
 
@@ -55,8 +46,19 @@ The 2013 data contain five stable daily patterns, but they mostly characterise u
 
 The analysis covers one study year and one holdout year. The 50% low-day threshold is a modelling choice, municipal holidays are not included, and 50 of 330 users have a different dominant pattern in winter (December to February) than in summer (June to August), a seasonal effect that the profiles do not model. At k = 5, 2 of 10 restarts still end in other local optima, so the result depends on keeping the lowest-cost restart. HDFS ran as a single node, and the times come from one run on one machine; they show the relative cost of the stages, not how the pipeline scales. Finally, one meter with an unusual 13:00–17:00 load block (MT_093) was left out of fitting, because it otherwise occupied a cluster of its own and made the K-means restarts disagree.
 
+## 6. Running the Code
+
+The archive contains the Python modules, a README that lists all options, and the HDFS configuration. The dataset (711 MB) is not included: it can be downloaded from the UCI repository [2] and unzipped into `data/raw`. With Python 3.11 or later and Java 17, these commands install the dependencies and run ingestion, feature construction, clustering and the profiles:
+
+```
+pip install -r requirements.txt
+python pipeline.py
+```
+
+Delta tables are written to `data/delta`, the model to `data/models`, and the HTML report and run log to `output`. `python pipeline.py explore` repeats the comparison of normalisations and k. To run on HDFS, `docker compose -f hdfs/docker-compose.yml up -d` starts a single-node instance; the README gives the commands that upload the file and point the pipeline at `hdfs://` paths.
+
 ## References
 
 [1] Apache Software Foundation. Spark 3.5.6: Clustering. Spark documentation.
 
-[2] A. Trindade. ElectricityLoadDiagrams20112014. UCI Machine Learning Repository, 2015. doi:10.24432/C58C86.
+[2] A. Trindade. ElectricityLoadDiagrams20112014. UCI Machine Learning Repository, 2015. doi:10.24432/C58C86. https://archive.ics.uci.edu/dataset/321/electricityloaddiagrams20112014

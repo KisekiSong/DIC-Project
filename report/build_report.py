@@ -1,7 +1,4 @@
-"""Render report.md as a two-page A4 PDF and check the result.
-
-Run from the project root after the pipeline: .venv/bin/python report/build_report.py
-Figure 1 is drawn from output/clustering.json, so it always shows the model the text describes."""
+"""Render report.md as a two-page A4 PDF. Run from the project root after the pipeline."""
 import json
 import re
 import sys
@@ -20,18 +17,19 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import (Image, KeepTogether, Paragraph, Preformatted, SimpleDocTemplate, Spacer, Table,
+                                TableStyle)
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(ROOT))
-from profiles import colour_of  # noqa: E402  same pattern colours as the HTML report
+from profiles import colour_of  # noqa: E402
 SOURCE = HERE / 'report.md'
 OUTPUT = HERE / 'report.pdf'
 FIGURE = HERE / 'build' / 'figure1.png'
 MAX_PAGES = 2
 FONTS = Path('/System/Library/Fonts/Supplemental')
-# Display names used in Table 1 and Figure 1, keyed by the labels clustering.py derives from the centres.
+# Figure 1 names, keyed by the labels from clustering.describe.
 PATTERN_NAMES = {
     'daytime plateau 09-22h, medium base': 'Broad daytime plateau (09–22 h)',
     'evening peak 19-23h, medium base': 'Evening peak (19–23 h)',
@@ -39,7 +37,7 @@ PATTERN_NAMES = {
     'daytime plateau 11-22h, low base': 'Low-base plateau (11–22 h)',
     'daytime plateau 09-19h, medium base': 'Office hours (09–19 h)',
 }
-# Markers keep the curves apart if the page is printed in black and white.
+# Markers keep the curves apart in black-and-white print.
 MARKERS = ['o', 's', '^', 'D', 'v']
 
 for name, filename in (('Serif', 'Times New Roman.ttf'), ('SerifBold', 'Times New Roman Bold.ttf'),
@@ -49,7 +47,6 @@ pdfmetrics.registerFontFamily('Serif', normal='Serif', bold='SerifBold', italic=
 
 STYLES = {
     'title': ParagraphStyle('title', fontName='SerifBold', fontSize=15, leading=18, spaceAfter=8),
-    'meta': ParagraphStyle('meta', fontName='Serif', fontSize=9.5, leading=11.5, spaceAfter=6),
     'heading': ParagraphStyle('heading', fontName='SerifBold', fontSize=11, leading=13, spaceBefore=5,
                               spaceAfter=2, keepWithNext=True),
     'body': ParagraphStyle('body', fontName='Serif', fontSize=10, leading=12, spaceAfter=3.5, alignment=TA_LEFT,
@@ -57,12 +54,15 @@ STYLES = {
     'caption': ParagraphStyle('caption', fontName='Serif', fontSize=9, leading=10.8, spaceBefore=2, spaceAfter=2),
     'cell': ParagraphStyle('cell', fontName='Serif', fontSize=9, leading=10.5),
     'reference': ParagraphStyle('reference', fontName='Serif', fontSize=9, leading=10.8, spaceAfter=1.5),
+    'code': ParagraphStyle('code', fontName='Courier', fontSize=8.5, leading=10.5, leftIndent=14, spaceBefore=1,
+                           spaceAfter=4),
 }
 
 
 def inline(text):
-    """Escape HTML and turn *italic* into ReportLab markup."""
-    return re.sub(r'\*([^*]+)\*', r'<i>\1</i>', escape(text))
+    """Escape HTML and turn *italic* and `code` into ReportLab markup."""
+    text = re.sub(r'\*([^*]+)\*', r'<i>\1</i>', escape(text))
+    return re.sub(r'`([^`]+)`', r'<font face="Courier" size="9">\1</font>', text)
 
 
 def caption(text):
@@ -134,8 +134,8 @@ def flowables(source):
         elif block.startswith('## '):
             in_references = block[3:] == 'References'
             story.append(Paragraph(inline(block[3:]), STYLES['heading']))
-        elif block.startswith('ID2221'):
-            story.append(Paragraph(inline(block), STYLES['meta']))
+        elif block.startswith('```'):
+            story.append(Preformatted('\n'.join(block.splitlines()[1:-1]), STYLES['code']))
         elif re.match(r'Table \d+\. ', block):
             pending_caption = caption(block)
         elif block.startswith('|'):

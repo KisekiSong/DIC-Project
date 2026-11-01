@@ -5,7 +5,7 @@ from common import write_table
 
 
 def load_wide(spark, raw_path):
-    # Semicolon-separated, decimal commas, first header cell is "" (one row per timestamp, one column per meter).
+    # Semicolon-separated with decimal commas; one row per timestamp, one column per meter.
     df = spark.read.option('sep', ';').option('header', True).option('inferSchema', False).csv(raw_path)
     return df.withColumnRenamed(df.columns[0], 'ts_label')
 
@@ -17,7 +17,7 @@ def to_long(wide):
     return (long
             .withColumn('ts', ts)
             .withColumn('kw', F.regexp_replace('kw_raw', ',', '.').cast('double'))
-            # A label marks the end of its 15-minute interval, so 00:00 closes the previous day.
+            # A label marks the end of its 15-minute interval.
             .withColumn('interval_start', F.col('ts') - F.expr('INTERVAL 15 MINUTES'))
             .withColumn('year', F.year('interval_start')))
 
@@ -54,7 +54,7 @@ def run(spark, args, log):
         report = validation_report(wide, long)
         valid = long.where(F.col('ts').isNotNull() & F.col('kw').isNotNull() & (F.col('kw') >= 0))
         if report['duplicate_timestamps']:
-            # Only pay for the shuffle when the check found duplicate user-time records.
+            # Deduplication needs a shuffle, so it only runs when duplicates exist.
             valid = valid.dropDuplicates(['user_id', 'ts'])
         valid = valid.select('user_id', 'ts', 'interval_start', 'kw', 'year')
         write_table(valid, args.data_root, 'readings', partition_by=['year'])

@@ -2,7 +2,7 @@
 
 ID2221 final project. The pipeline turns the UCI ElectricityLoadDiagrams20112014 meter data into one
 normalised 24-hour load curve per user-day, groups those curves with K-means, and summarises how often each
-user follows each pattern on weekdays and weekends.
+user follows each pattern on weekdays and weekends. The two-page report is `report/report.pdf`.
 
 ## Pipeline
 
@@ -115,8 +115,7 @@ drawn from `output/clustering.json`, so build the report after running the pipel
 .venv/bin/python report/build_report.py
 ```
 
-The build fails if the PDF exceeds two pages or the source contains a placeholder. `report/report-evidence.md`
-maps each requirement and number in the report to its source.
+The build fails if the PDF exceeds two pages or the source contains a placeholder.
 
 ## Results (default configuration)
 

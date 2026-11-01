@@ -1,7 +1,4 @@
-"""Weekly-structure metrics for a day-level clustering.
-
-Everything here works on a small collected table of (user_id, day_class, low, cluster, days) counts, so the main
-report and the normalisation/k experiment use the same definitions."""
+"""Weekly-structure metrics, computed from a collected table of (user, day class, low, cluster, days) counts."""
 from collections import defaultdict
 from math import log2
 
@@ -124,7 +121,6 @@ def cluster_stats(tally, k):
             lifts[day_class] = lift(in_cluster, size, tally.by_class[day_class], tally.total)
         lifts['low'] = lift(tally.low_by_cluster[cluster], size, tally.low, tally.total)
         meter, meter_days = top.get(cluster, (None, 0))
-        # A cluster mostly made of one meter's days is an outlier sink rather than a shared pattern.
         clusters.append({'cluster': cluster, 'share': size / tally.total, 'lift': lifts,
                          'top_user': meter, 'top_user_share': ratio(meter_days, size)})
     return clusters
@@ -166,8 +162,8 @@ def weekly_information(tally):
 
 
 def holiday_check(tally):
-    """For users whose dominant Sunday pattern differs from their weekday one: how often do weekday holidays take
-    the Sunday pattern, compared with ordinary weekdays (the false-alarm rate)?"""
+    """Share of weekday holidays (and of ordinary weekdays) that take the Sunday pattern of users whose
+    Sunday pattern differs from their weekday one."""
     switchers = holidays = holiday_sunday = holiday_weekday = weekdays = weekday_sunday = 0
     for user in tally.mixes:
         weekday = tally.mix(user, 'weekday')
