@@ -48,7 +48,7 @@ for name, filename in (('Serif', 'Times New Roman.ttf'), ('SerifBold', 'Times Ne
 pdfmetrics.registerFontFamily('Serif', normal='Serif', bold='SerifBold', italic='SerifItalic')
 
 STYLES = {
-    'title': ParagraphStyle('title', fontName='SerifBold', fontSize=15, leading=18, spaceAfter=3),
+    'title': ParagraphStyle('title', fontName='SerifBold', fontSize=15, leading=18, spaceAfter=8),
     'meta': ParagraphStyle('meta', fontName='Serif', fontSize=9.5, leading=11.5, spaceAfter=6),
     'heading': ParagraphStyle('heading', fontName='SerifBold', fontSize=11, leading=13, spaceBefore=5,
                               spaceAfter=2, keepWithNext=True),

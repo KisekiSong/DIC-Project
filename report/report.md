@@ -1,7 +1,5 @@
 # Discovering Daily Electricity Use Patterns with Apache Spark
 
-ID2221 Data-Intensive Computing | Final Project Report | Code: github.com/KisekiSong/DIC-Project
-
 ## 1. Introduction
 
 Daily electricity totals show how much a user consumes but not when the demand occurs. This project investigates whether historical meter records contain stable and interpretable daily load patterns, and how often each user follows them on weekdays and at weekends. One observation is one user's day, represented by its 24-hour load curve. As planned in the proposal, the data are stored in HDFS and Delta Lake, prepared with PySpark and Spark SQL and clustered with K-means in Spark ML [1].
